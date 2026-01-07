@@ -1,15 +1,25 @@
 module if_id_reg (
-    input  logic        clk,
-    input  logic        rst_n,
-    input  logic        stall,
-    input  logic        flush,
-    input  logic [31:0] pc_in,
-    input  logic [31:0] instr_in,
-    output logic [31:0] pc_out,
-    output logic [31:0] instr_out
+    clk,
+    rst_n,
+    stall,
+    flush,
+    pc_in,
+    instr_in,
+    pc_out,
+    instr_out
 );
-    
-    always_ff @(posedge clk or negedge rst_n) begin
+    input clk;
+    input rst_n;
+    input stall;
+    input flush;
+    input [31:0] pc_in;
+    input [31:0] instr_in;
+    output [31:0] pc_out;
+    output [31:0] instr_out;
+    reg [31:0] pc_out;
+    reg [31:0] instr_out;
+
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             pc_out <= 32'b0;
             instr_out <= 32'b0;
@@ -21,5 +31,4 @@ module if_id_reg (
             instr_out <= instr_in;
         end
     end
-    
 endmodule

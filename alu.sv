@@ -1,23 +1,36 @@
 module alu (
-    input  logic [31:0] a,
-    input  logic [31:0] b,
-    input  riscv_pkg::alu_op_t alu_op,
-    output logic [31:0] result,
-    output logic        zero
+    a,
+    b,
+    alu_op,
+    result,
+    zero
 );
-    
-    import riscv_pkg::*;
-    
-    logic [31:0] b_actual;
-    logic [31:0] diff;
-    logic        lt, ltu;
-    
-    assign b_actual = (alu_op == ALU_SUB) ? ~b + 1 : b;
-    assign diff = a + b_actual;
-    assign lt = $signed(a) < $signed(b);
-    assign ltu = a < b;
-    
-    always_comb begin
+    input [31:0] a;
+    input [31:0] b;
+    input [3:0] alu_op;
+    output [31:0] result;
+    output zero;
+    reg [31:0] result;
+    wire zero;
+
+    // ALU op parameters
+    parameter ALU_ADD  = 4'b0000;
+    parameter ALU_SUB  = 4'b0001;
+    parameter ALU_AND  = 4'b0010;
+    parameter ALU_OR   = 4'b0011;
+    parameter ALU_XOR  = 4'b0100;
+    parameter ALU_SLL  = 4'b0101;
+    parameter ALU_SRL  = 4'b0110;
+    parameter ALU_SRA  = 4'b0111;
+    parameter ALU_SLT  = 4'b1000;
+    parameter ALU_SLTU = 4'b1001;
+    parameter ALU_LUI  = 4'b1010;
+
+    wire lt, ltu;
+    assign lt = ($signed(a) < $signed(b));
+    assign ltu = (a < b);
+
+    always @* begin
         case (alu_op)
             ALU_ADD:  result = a + b;
             ALU_SUB:  result = a - b;
@@ -33,7 +46,6 @@ module alu (
             default:  result = 32'b0;
         endcase
     end
-    
+
     assign zero = (result == 32'b0);
-    
 endmodule
