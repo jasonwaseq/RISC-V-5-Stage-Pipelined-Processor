@@ -1,3 +1,154 @@
-# RISC-V-5-Stage-Pipelined-Processor
+# RISC-V 5-Stage Pipelined Processor
 
-This project involved the design and implementation of a fully-functional 5-stage pipelined RISC-V processor using SystemVerilog, featuring a complete instruction set architecture supporting R-Type, I-Type, S-Type, B-Type, J-Type, and U-Type instructions. The processor implements a classic Harvard architecture with separate instruction and data memories, and incorporates sophisticated hazard detection and forwarding mechanisms to handle both data and control hazards efficiently. The design includes all essential components: program counter logic, register file, arithmetic logic unit (ALU), control unit, immediate generator, branch prediction unit, and pipeline registers between each stage (IF, ID, EX, MEM, WB). A comprehensive testbench was developed with automated verification, coverage analysis, and multiple test programs to validate instruction execution, memory operations, branching behavior, and hazard handling scenarios, ensuring robust performance and correct operation under various conditions.
+A simple RV32I RISC-V processor implementation targeting the iCEBreaker (iCE40UP5K) FPGA.
+
+## Features
+
+- **5-stage pipeline**: Fetch (F), Decode (D), Execute (X), Memory (M), Writeback (W)
+- **RV32I base instruction set**: All integer instructions supported
+- **Data forwarding**: Reduces stalls for data hazards
+- **Load-use hazard detection**: Automatic stall insertion
+- **Branch handling**: Flush on taken branch
+- **UART interface**: Load programs and read registers via serial
+
+## Supported Instructions
+
+| Type | Instructions |
+|------|-------------|
+| R-type | ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, SLT, SLTU |
+| I-type | ADDI, ANDI, ORI, XORI, SLTI, SLTIU, SLLI, SRLI, SRAI |
+| Load | LB, LH, LW, LBU, LHU |
+| Store | SB, SH, SW |
+| Branch | BEQ, BNE, BLT, BGE, BLTU, BGEU |
+| Jump | JAL, JALR |
+| Upper | LUI, AUIPC |
+
+## Project Structure
+
+```
+├── rtl/                    # RTL source files
+│   ├── riscv_core.sv       # Processor core (all 5 stages)
+│   ├── riscv_top.sv        # Top-level with UART interface
+│   ├── memory.sv           # Synchronous RAM module
+│   ├── uart.v              # UART module
+│   ├── uart_tx.v           # UART transmitter
+│   └── uart_rx.v           # UART receiver
+├── test/                   # Testbench
+│   └── test_riscv.py       # Cocotb testbench
+├── scripts/                # Utility scripts
+│   └── test_fpga.py        # FPGA test via UART
+├── synth/                  # Synthesis files
+│   └── icebreaker.pcf      # Pin constraints
+├── Makefile                # Build automation
+└── README.md
+```
+
+## Pipeline Architecture
+
+```
+┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐
+│  F  │──▶│  D  │──▶│  X  │──▶│  M  │──▶│  W  │
+└─────┘   └─────┘   └─────┘   └─────┘   └─────┘
+ Fetch    Decode   Execute   Memory   Writeback
+```
+
+**Fetch (F)**: Read instruction from memory, update PC  
+**Decode (D)**: Decode instruction, read registers, generate immediate  
+**Execute (X)**: ALU operation, branch decision, forwarding  
+**Memory (M)**: Load/store data memory access  
+**Writeback (W)**: Write result back to register file
+
+## Requirements
+
+### Simulation
+- Python 3.8+
+- cocotb
+- Icarus Verilog or Verilator
+
+### Synthesis
+- Yosys
+- nextpnr-ice40
+- icestorm tools
+
+### FPGA Testing
+- iCEBreaker FPGA board
+- pyserial (`pip install pyserial`)
+
+## Quick Start
+
+### Simulation
+
+```bash
+# Run all cocotb tests
+make sim
+
+# Run specific test
+make sim TESTCASE=test_addi
+```
+
+### Synthesis
+
+```bash
+# Build bitstream
+make build
+
+# Program FPGA
+make prog
+```
+
+### FPGA Testing
+
+```bash
+# Run all hardware tests
+python scripts/test_fpga.py
+
+# Interactive mode
+python scripts/test_fpga.py -i
+
+# Specify port
+python scripts/test_fpga.py -p /dev/ttyUSB0
+```
+
+## UART Protocol
+
+The FPGA communicates at 115200 baud (8N1).
+
+| Command | Format | Description |
+|---------|--------|-------------|
+| Write Instr | `0xAA <addr_hi> <addr_lo> <d3> <d2> <d1> <d0>` | Write 32-bit instruction |
+| Read Reg | `0xBB <reg>` | Read register (returns 4 bytes) |
+| Run | `0xCC` | Start processor |
+| Halt | `0xDD` | Stop processor |
+| Reset | `0xEE` | Reset processor |
+
+## Resource Usage (iCE40UP5K)
+
+| Resource | Used | Available |
+|----------|------|-----------|
+| LUTs | ~2500 | 5280 |
+| FFs | ~800 | 5280 |
+| BRAM | 4 | 30 |
+
+## Example Program
+
+Simple program that adds two numbers:
+
+```assembly
+# x1 = 10, x2 = 25, x3 = x1 + x2 = 35
+addi x1, x0, 10     # 0x00A00093
+addi x2, x0, 25     # 0x01900113
+add  x3, x1, x2     # 0x002081B3
+```
+
+Load via UART:
+```python
+tester.write_instruction(0x00, 0x00A00093)
+tester.write_instruction(0x04, 0x01900113)
+tester.write_instruction(0x08, 0x002081B3)
+tester.run_processor()
+# After execution: x3 = 35
+```
+
+## License
+
+MIT License
