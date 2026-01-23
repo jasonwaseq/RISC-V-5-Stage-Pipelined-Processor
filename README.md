@@ -1,4 +1,4 @@
-# RISC-V 5-Stage Pipelined Processor
+# FPGA RISC-V 5-Stage Pipelined Processor
 
 A simple RV32I RISC-V processor implementation targeting the iCEBreaker (iCE40UP5K) FPGA.
 
