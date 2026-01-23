@@ -46,6 +46,7 @@ module riscv_top (
         ST_WRITE_ADDR_LO,
         ST_WRITE_DATA,
         ST_READ_REG,
+        ST_WAIT_REG,
         ST_SEND_RESPONSE
     } state_t;
     
@@ -59,7 +60,7 @@ module riscv_top (
     logic [4:0]   dbg_reg_addr;
     logic [31:0]  dbg_reg_data;
     logic [31:0]  response;
-    logic [1:0]   resp_cnt;
+    logic [2:0]   resp_cnt;  // Changed to 3 bits for 0-4 counting
     
     // Instruction memory write interface
     logic        imem_we;
@@ -92,7 +93,8 @@ module riscv_top (
             uart_tx_valid<= 1'b0;
             uart_tx_data <= 8'd0;
             imem_we      <= 1'b0;
-            resp_cnt     <= 2'd0;
+            resp_cnt     <= 3'd0;
+            response     <= 32'd0;
         end else begin
             imem_we <= 1'b0;
             cpu_rst <= 1'b0;
@@ -186,24 +188,31 @@ module riscv_top (
                     uart_rx_ready <= 1'b1;
                     if (uart_rx_valid && uart_rx_ready) begin
                         dbg_reg_addr <= uart_rx_data[4:0];
-                        response <= dbg_reg_data;
-                        resp_cnt <= 2'd0;
-                        state <= ST_SEND_RESPONSE;
+                        state <= ST_WAIT_REG;
                         uart_rx_ready <= 1'b0;
                     end
                 end
                 
+                ST_WAIT_REG: begin
+                    // Wait one cycle for register file to output the data
+                    response <= dbg_reg_data;
+                    resp_cnt <= 3'd0;
+                    state <= ST_SEND_RESPONSE;
+                end
+                
                 ST_SEND_RESPONSE: begin
+                    // Send 4 bytes: [31:24], [23:16], [15:8], [7:0]
                     if (!uart_tx_valid || uart_tx_ready) begin
                         case (resp_cnt)
-                            2'd0: uart_tx_data <= dbg_reg_data[31:24];
-                            2'd1: uart_tx_data <= dbg_reg_data[23:16];
-                            2'd2: uart_tx_data <= dbg_reg_data[15:8];
-                            2'd3: uart_tx_data <= dbg_reg_data[7:0];
+                            3'd0: uart_tx_data <= response[31:24];
+                            3'd1: uart_tx_data <= response[23:16];
+                            3'd2: uart_tx_data <= response[15:8];
+                            3'd3: uart_tx_data <= response[7:0];
+                            default: ;
                         endcase
                         uart_tx_valid <= 1'b1;
                         
-                        if (resp_cnt == 2'd3) begin
+                        if (resp_cnt == 3'd3) begin
                             state <= ST_IDLE;
                         end else begin
                             resp_cnt <= resp_cnt + 1'b1;
@@ -218,15 +227,18 @@ module riscv_top (
     
     // Instruction memory write address/data
     assign imem_waddr = {16'd0, write_addr};
-    assign imem_wdata = {write_data[7:0], write_data[15:8], write_data[23:16], write_data[31:24]};
+    assign imem_wdata = write_data;  // No byte swap needed - data already in correct order
     assign imem_be    = 4'b1111;
 
     // =========================================================================
     // RISC-V Core
+    // rst_n: Pipeline reset - active when halted (cpu_running=0) or cpu_rst
+    // rf_rst_n: Register file reset - only on hard reset (cpu_rst or external reset)
     // =========================================================================
     riscv_core cpu (
         .clk          (clk),
-        .rst_n        (rst_n & ~cpu_rst & cpu_running),
+        .rst_n        (rst_n & ~cpu_rst & cpu_running),  // Pipeline stops when halted
+        .rf_rst_n     (rst_n & ~cpu_rst),                 // Registers preserved on halt
         .imem_addr    (imem_addr),
         .imem_data    (imem_data),
         .dmem_addr    (dmem_addr),
