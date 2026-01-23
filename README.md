@@ -1,6 +1,6 @@
 # FPGA RISC-V 5-Stage Pipelined Processor
 
-A simple RV32I RISC-V processor implementation targeting the iCEBreaker (iCE40UP5K) FPGA.
+A complete RISC-V 5-stage pipelined processor implementation designed for FPGA deployment on the iCEBreaker (iCE40UP5K) board. This project implements the classic textbook pipeline architecture with Fetch, Decode, Execute, Memory, and Writeback stages, supporting the RV32I base integer instruction set. The processor features proper pipeline hazard handling through data forwarding and automatic stall insertion, enabling efficient execution of back-to-back dependent instructions. A UART-based interface allows real-time program loading, register inspection, and processor control at 115200 baud, making it ideal for educational purposes and embedded applications. The design includes comprehensive testing infrastructure with both simulation testbenches and hardware validation scripts, along with an interactive mode that enables users to assemble and execute RISC-V instructions directly on the FPGA. With a compact footprint of approximately 2500 LUTs, the processor demonstrates efficient resource utilization while maintaining full pipeline functionality and includes 15 example programs showcasing arithmetic, logical, shift, comparison, and data hazard scenarios.
 
 ## Features
 
